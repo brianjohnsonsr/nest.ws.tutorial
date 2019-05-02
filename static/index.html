@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Websockets Client</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+    <div id="v-app">
+        <h1>{{ title }}</h1>
+        <form>
+            <input v-model="text" type="text"/>
+            <button type="submit" @click.prevent="sendMessage()">Send</button>
+        </form>
+        <p>
+            <ul>
+                <li v-for="msg of messages">{{ msg }}</li>
+            </ul>
+        </p>
+    </div>
+    <script>
+        var app = new Vue({
+            el: '#v-app',
+            data: {
+                title: 'Websockets Tester',
+                text: '',
+                messages: ['Some message', 'Another message'],
+                socket: null,
+            },
+            methods: {
+                sendMessage() {
+                    console.log(`send: ${this.text}`);
+                    this.socket.emit('msgToServer', this.text);
+                    this.text = "";
+                },
+                receiveMessage(msg) {
+                    console.log(`recv: ${msg}`);
+                    this.messages.push(msg);
+                }
+            },
+            created() {
+                this.socket = io('http://localhost:3000');
+                this.socket.on('msgToClient', (msg) => {
+                    this.receiveMessage(msg);
+                });
+            }
+        });
+    
+    </script>
+</body>
+</html>
