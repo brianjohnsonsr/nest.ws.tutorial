@@ -22,13 +22,23 @@
                 <input v-model="text" type="text"/>
                 <button type="submit" @click.prevent="sendChatMessage()">Send</button>
             </form>
+            <!-- Tabs -->
+            <div class="tab-row">
+                <button class="tab-btn" :class="{ active: activeRoom == 'general' }" @click="activeRoom = 'general'">General</button>
+                <button class="tab-btn" :class="{ active: activeRoom == 'typescript' }" @click="activeRoom = 'typescript'">TypeScript</button>
+                <button class="tab-btn" :class="{ active: activeRoom == 'nestjs' }" @click="activeRoom = 'nestjs'">NestJS</button>
+            </div>
+            <div class="tab-row">
+                Status: {{ isMemberOfActiveRoom ? 'Joined' : 'NOT Joined' }} <button @click="toggleRoomMembership()">{{ isMemberOfActiveRoom ? 'Leave' : 'Join' }}</button>
+            </div>
             <p>
                 <ul>
-                    <li v-for="msg of messages">
+                    <li v-for="msg of messages[activeRoom]">
                         <strong>{{ msg.sender }}:</strong> {{ msg.message }}
                     </li>
                 </ul>
             </p>
+            <!-- /Tabs -->
         </section>
     </main>
     <script>
@@ -38,20 +48,46 @@
             data: {
                 username: '',
                 text: '',
-                messages: [],
+                messages: {
+                    general: [],
+                    typescript: [],
+                    nestjs: []
+                },
                 socket: { chat: null, alerts: null },
                 alerts: [],
+                activeRoom: 'general',
+                rooms: {
+                    general: false,
+                    typescript: false,
+                    nestjs: false
+                }
             },
             methods: {
                 sendChatMessage() {
-                    this.socket.chat.emit('chatToServer', { sender: this.username, message: this.text });
-                    this.text = "";
+                    if (this.isMemberOfActiveRoom) {
+                        this.socket.chat.emit('chatToServer', { sender: this.username, room: this.activeRoom, message: this.text });
+                        this.text = "";
+                    } else {
+                        alert('You must join the room before sending messages!');
+                    }
                 },
                 receiveChatMessage(msg) {
-                    this.messages.push(msg);
+                    this.messages[msg.room].push(msg);
                 },
                 receiveAlertMessage(msg) {
                     this.alerts.push(msg);
+                },
+                toggleRoomMembership() {
+                    if (this.isMemberOfActiveRoom) {
+                        this.socket.chat.emit('leaveRoom', this.activeRoom);
+                    } else {
+                        this.socket.chat.emit('joinRoom', this.activeRoom);
+                    }
+                }
+            },
+            computed: {
+                isMemberOfActiveRoom() {
+                    return this.rooms[this.activeRoom];
                 }
             },
             created() {
@@ -60,6 +96,15 @@
                 this.socket.chat = io('http://localhost:3000/chat');
                 this.socket.chat.on('chatToClient', (msg) => {
                     this.receiveChatMessage(msg);
+                });
+                this.socket.chat.on('connect', () => {
+                    this.toggleRoomMembership();
+                });
+                this.socket.chat.on('joinedRoom', (room) => {
+                    this.rooms[room] = true;
+                });
+                this.socket.chat.on('leftRoom', (room) => {
+                    this.rooms[room] = false;
                 });
 
                 this.socket.alerts = io('http://localhost:3000/alert');
